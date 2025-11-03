@@ -20,8 +20,6 @@ Set environment variables:
 ```bash
 export GARMIN_EMAIL="your@email.com"
 export GARMIN_PASSWORD="your_password"
-export API_KEY="your-api-key"  # Optional, if API requires it
-export GARMIN_API_URL="https://fgggkckgk8osog4osgg4484k.mart1m.fr"  # Optional, defaults to your API
 ```
 
 ## Usage with Claude Desktop
