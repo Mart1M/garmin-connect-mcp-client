@@ -166,15 +166,22 @@ const tools = [
   // Activity Tools
   {
     name: "get_activities",
-    description: "Get list of activities",
+    description:
+      "Get list of activities. Returns simplified activities by default (~200 tokens each) with only essential fields for analysis. Set simplify=false for full data (~1000 tokens each). Limited to 20 activities maximum.",
     inputSchema: {
       type: "object",
       properties: {
         start: { type: "number", default: 0 },
-        limit: { type: "number", default: 20 },
+        limit: { type: "number", default: 10 },
         activitytype: {
           type: "string",
           description: "Filter by activity type",
+        },
+        simplify: {
+          type: "boolean",
+          default: true,
+          description:
+            "If true (default), returns only essential fields for analysis (~200 tokens/activity). If false, returns full activity data (~1000 tokens/activity)",
         },
       },
     },
