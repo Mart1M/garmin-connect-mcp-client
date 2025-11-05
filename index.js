@@ -96,7 +96,7 @@ const apiRequest = async (method, endpoint, body = null) => {
 const server = new Server(
   {
     name: "garmin-connect-mcp-client",
-    version: "0.3.0",
+    version: "0.3.2",
   },
   {
     capabilities: {
