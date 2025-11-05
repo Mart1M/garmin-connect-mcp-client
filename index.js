@@ -143,6 +143,53 @@ REQUIRED FIELDS FOR EACH STEP:
 - targetType: {workoutTargetTypeId, workoutTargetTypeKey, displayOrder}
   * no.target: workoutTargetTypeId=1
   * pace.zone: workoutTargetTypeId=6 (requires targetValueOne, targetValueTwo, zoneNumber)
+  
+PACE ZONE FORMAT (targetValueOne/targetValueTwo):
+  IMPORTANT: Garmin API accepts TWO different formats depending on the source:
+  
+  FORMAT 1: SECONDS PER KILOMETER (sec/km) - Most common
+  Conversion: min:sec/km → (minutes × 60) + seconds
+  
+  Examples:
+  - 3:45 min/km = (3 × 60) + 45 = 225 sec/km → targetValueOne: 225
+  - 3:55 min/km = (3 × 60) + 55 = 235 sec/km → targetValueTwo: 235
+  - 4:00 min/km = (4 × 60) + 0 = 240 sec/km
+  - 5:30 min/km = (5 × 60) + 30 = 330 sec/km
+  
+  FORMAT 2: METERS PER SECOND (m/s) - Alternative format
+  Conversion: min:sec/km → 1000 / ((minutes × 60) + seconds)
+  
+  Examples:
+  - 3:50 min/km = 1000 / 230 = 4.348 m/s
+  - 4:30 min/km = 1000 / 270 = 3.704 m/s
+  - 4:40 min/km = 1000 / 280 = 3.571 m/s
+  
+  Quick reference for 3:50/km (target pace):
+  - Format sec/km: targetValueOne: 225 (3:45/km, faster), targetValueTwo: 235 (3:55/km, slower)
+  - Format m/s: targetValueOne: 4.444 (3:45/km, faster), targetValueTwo: 4.255 (3:55/km, slower)
+  
+  IMPORTANT: In m/s format, targetValueOne > targetValueTwo (faster pace = higher m/s)
+             In sec/km format, targetValueOne < targetValueTwo (faster pace = lower seconds)
+  
+  For a pace zone between 3:45-3:55 min/km using sec/km:
+  {
+    "targetType": {"workoutTargetTypeId": 6, "workoutTargetTypeKey": "pace.zone", "displayOrder": 6},
+    "targetValueOne": 225,  // 3:45 min/km in sec/km
+    "targetValueTwo": 235,  // 3:55 min/km in sec/km
+    "zoneNumber": 1
+  }
+  
+  For a pace zone between 4:30-4:40 min/km using m/s:
+  {
+    "targetType": {"workoutTargetTypeId": 6, "workoutTargetTypeKey": "pace.zone", "displayOrder": 6},
+    "targetValueOne": 3.704,  // 4:30 min/km in m/s
+    "targetValueTwo": 3.571,  // 4:40 min/km in m/s
+    "zoneNumber": 1
+  }
+  
+  Note: targetValueOne is the MINIMUM pace (faster), targetValueTwo is the MAXIMUM pace (slower).
+  If you see decimal values (like 3.7), they're likely in m/s format.
+  If you see integer values (like 225), they're likely in sec/km format.
 - strokeType: {strokeTypeId: 0, displayOrder: 0}
 - equipmentType: {equipmentTypeId: 0, displayOrder: 0}
 - numberOfIterations: 1 for single steps, N for repeat groups
