@@ -173,10 +173,16 @@ PACE ZONE FORMAT (targetValueOne/targetValueTwo):
   For exactly 3:50/km:
   {
     "targetType": {"workoutTargetTypeId": 6, "workoutTargetTypeKey": "pace.zone", "displayOrder": 6},
-    "targetValueOne": 4.348,  // 3:50/km in m/s
-    "targetValueTwo": 4.348,  // 3:50/km in m/s
-    "zoneNumber": 1
+    "targetValueOne": 4.348,  // 3:50/km in m/s (faster limit)
+    "targetValueTwo": 4.348,  // 3:50/km in m/s (slower limit)
+    "zoneNumber": 1,  // REQUIRED: must be 1, not null
+    "targetValueUnit": null  // Can be null, but zoneNumber is required
   }
+  
+  CRITICAL: 
+  - zoneNumber MUST be set to 1 (not null) for pace zones
+  - targetValueOne MUST be > targetValueTwo (faster = higher m/s)
+  - Your current values (3.704, 3.571) give 4:30-4:40/km, not 3:50/km
   
   Quick conversion table:
   - 3:30/km = 4.762 m/s
@@ -197,7 +203,7 @@ COMMON ERRORS TO AVOID:
 - Do NOT wrap in array or "output" object - send the workout object directly
 - Do NOT use "kind" field - it doesn't exist in Garmin API
 - Ensure all IDs (stepTypeId, conditionTypeId, etc.) are present, not just keys
-- For pace zones, targetValueOne and targetValueTwo must be different
+- For pace zones: targetValueOne > targetValueTwo (faster = higher m/s), and zoneNumber must be 1 (not null)
 
 Generated IDs (workoutId, stepId, etc.) will be automatically cleaned if auto_clean=true (default).`,
     inputSchema: {
