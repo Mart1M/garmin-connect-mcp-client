@@ -96,7 +96,7 @@ const apiRequest = async (method, endpoint, body = null) => {
 const server = new Server(
   {
     name: "garmin-connect-mcp-client",
-    version: "0.3.4",
+    version: "0.3.5",
   },
   {
     capabilities: {
@@ -110,136 +110,120 @@ const tools = [
   // Workout Tools
   {
     name: "upload_workout",
-    description: `Upload a workout to Garmin Connect. The workout must be in JSON format compliant with the Garmin API.
+    description: `Upload a workout to Garmin Connect. The workout must be a SINGLE JSON object starting directly with {"workoutName": ...}. Do NOT wrap in arrays or "output" objects.
 
-REQUIRED STRUCTURE:
-- workoutName (string): Name of the workout
-- sportType (object): Must include sportTypeId, sportTypeKey, displayOrder
-  * sportTypeId: 1=running, 2=cycling, 3=swimming, etc.
-  * sportTypeKey: "running", "cycling", "swimming", etc.
-- workoutSegments (array): Array of workout segments, each containing:
-  * segmentOrder (integer): Sequential order starting at 1
-  * sportType (object): Same structure as root sportType
-  * workoutSteps (array): Array of steps (warmup, intervals, recovery, cooldown, repeat groups)
+🧩 STRUCTURE GARMIN REQUIRED:
 
-STEP TYPES (ExecutableStepDTO):
-- warmup: stepTypeId=1, stepTypeKey="warmup"
-- cooldown: stepTypeId=2, stepTypeKey="cooldown"
-- interval: stepTypeId=3, stepTypeKey="interval"
-- recovery: stepTypeId=4, stepTypeKey="recovery"
-- repeat: stepTypeId=6, stepTypeKey="repeat" (RepeatGroupDTO)
+Root structure:
+{
+  "workoutName": "YYYY-MM-DD - Workout Name",
+  "sportType": {"sportTypeId": 1, "sportTypeKey": "running", "displayOrder": 1},
+  "author": {},
+  "estimatedDurationInSecs": <sum of all executable durations including repetitions>,
+  "workoutSegments": [{ "segmentOrder": 1, "sportType": {...}, "workoutSteps": [...] }]
+}
 
-END CONDITIONS:
-- time: conditionTypeId=2, conditionTypeKey="time", endConditionValue in seconds
-- distance: conditionTypeId=3, conditionTypeKey="distance", endConditionValue in meters
-- iterations: conditionTypeId=7, conditionTypeKey="iterations", endConditionValue=number of repeats
+🧱 STEP TYPES:
 
-REQUIRED FIELDS FOR EACH STEP:
-- type: "ExecutableStepDTO" or "RepeatGroupDTO"
-- stepOrder: Sequential integer
+ExecutableStepDTO (single step):
+- type: "ExecutableStepDTO"
+- stepOrder: >=1 (sequential)
 - stepType: {stepTypeId, stepTypeKey, displayOrder}
 - endCondition: {conditionTypeId, conditionTypeKey, displayOrder, displayable}
-- endConditionValue: Number (seconds, meters, or iterations)
+- endConditionValue: number (seconds or meters)
 - targetType: {workoutTargetTypeId, workoutTargetTypeKey, displayOrder}
-  * no.target: workoutTargetTypeId=1
-  * pace.zone: workoutTargetTypeId=6 (requires targetValueOne, targetValueTwo, zoneNumber)
-  
-PACE ZONE FORMAT (targetValueOne/targetValueTwo):
-  REQUIRED FORMAT: METERS PER SECOND (m/s) - This is the ONLY format accepted by Garmin API.
-  
-  Conversion formula: min:sec/km → 1000 / ((minutes × 60) + seconds)
-  
-  Examples:
-  - 3:45 min/km = 1000 / 225 = 4.444 m/s
-  - 3:50 min/km = 1000 / 230 = 4.348 m/s
-  - 3:55 min/km = 1000 / 235 = 4.255 m/s
-  - 4:00 min/km = 1000 / 240 = 4.167 m/s
-  - 4:30 min/km = 1000 / 270 = 3.704 m/s
-  - 4:40 min/km = 1000 / 280 = 3.571 m/s
-  - 5:30 min/km = 1000 / 330 = 3.030 m/s
-  
-  IMPORTANT: targetValueOne > targetValueTwo (faster pace = higher m/s)
-  - targetValueOne = MINIMUM pace (faster, higher m/s value)
-  - targetValueTwo = MAXIMUM pace (slower, lower m/s value)
-  
-  For a pace zone around 3:50/km (e.g., 3:45-3:55/km):
-  {
-    "targetType": {"workoutTargetTypeId": 6, "workoutTargetTypeKey": "pace.zone", "displayOrder": 6},
-    "targetValueOne": 4.444,  // 3:45/km (faster) in m/s
-    "targetValueTwo": 4.255,  // 3:55/km (slower) in m/s
-    "zoneNumber": 1
-  }
-  
-  For exactly 3:50/km:
-  {
-    "targetType": {"workoutTargetTypeId": 6, "workoutTargetTypeKey": "pace.zone", "displayOrder": 6},
-    "targetValueOne": 4.348,  // 3:50/km in m/s (faster limit)
-    "targetValueTwo": 4.348,  // 3:50/km in m/s (slower limit)
-    "zoneNumber": null,  // Can be 1 or null (both work, API may return null)
-    "targetValueUnit": null  // Should be null for pace zones
-  }
-  
-  For 3:45-3:55/km zone (example from Garmin API response):
-  {
-    "targetType": {"workoutTargetTypeId": 6, "workoutTargetTypeKey": "pace.zone", "displayOrder": 6},
-    "targetValueOne": 4.4444445,  // 3:45/km in m/s (faster)
-    "targetValueTwo": 4.2553192,  // 3:55/km in m/s (slower)
-    "zoneNumber": null,  // API returns null even when set
-    "targetValueUnit": null
-  }
-  
-  FIELD EXPLANATIONS:
-  - zoneNumber: Zone identifier for the target metric (pace, heart rate, etc.)
-    * For pace.zone: Can be 1 or null (both work, API may return null)
-    * For other target types: Can be 1-5 depending on zone type
-    * Purpose: Identifies which zone in a zone-based target system
-    * Note: Garmin API may return null even when set to 1
-  - targetValueUnit: Unit of measurement for targetValueOne/targetValueTwo
-    * For pace.zone: Should be null (API infers m/s from pace.zone type)
-    * Possible values: "sec_per_km", "m_per_s", null, etc.
-    * Purpose: Explicitly specifies the unit, but null is standard for pace zones
-  
-  ⚠️ COMMON MISTAKE - VALUES THAT GIVE 4:30-4:40/km (WRONG):
-  - targetValueOne: 3.7037037 → This is 4:30/km (WRONG for 3:50/km)
-  - targetValueTwo: 3.5714285 → This is 4:40/km (WRONG for 3:50/km)
-  - These values are INVERTED and TOO LOW - they give 4:35/km display
-  
-  ✅ CORRECT VALUES FOR 3:50/km:
-  - targetValueOne: 4.348 (or 4.444 for 3:45/km zone)
-  - targetValueTwo: 4.348 (or 4.255 for 3:55/km zone)
-  
-  CRITICAL RULES: 
-  - targetValueOne MUST be > targetValueTwo (faster = higher m/s)
-  - For 3:50/km: targetValueOne = 4.348, targetValueTwo = 4.348
-  - For 3:45-3:55/km zone: targetValueOne = 4.444, targetValueTwo = 4.255
-  - zoneNumber can be 1 or null (both work)
-  - targetValueUnit should be null for pace zones
-  
-  FORMULA TO CONVERT: min:sec/km → 1000 / ((minutes × 60) + seconds)
-  Example: 3:50/km = 1000 / 230 = 4.348 m/s
-  
-  Quick conversion table:
-  - 3:30/km = 4.762 m/s
-  - 3:45/km = 4.444 m/s
-  - 3:50/km = 4.348 m/s
-  - 4:00/km = 4.167 m/s
-  - 4:15/km = 3.922 m/s
-  - 4:30/km = 3.704 m/s
-  - 5:00/km = 3.333 m/s
 - strokeType: {strokeTypeId: 0, displayOrder: 0}
 - equipmentType: {equipmentTypeId: 0, displayOrder: 0}
-- numberOfIterations: 1 for single steps, N for repeat groups
-- workoutSteps: [] for ExecutableStepDTO, array for RepeatGroupDTO
-- smartRepeat: false (usually)
+- numberOfIterations: 1
+- workoutSteps: []
+- smartRepeat: false
+FORBIDDEN on ExecutableStepDTO: workoutSteps with content, smartRepeat=true, numberOfIterations != 1
+
+RepeatGroupDTO (repeating group):
+- type: "RepeatGroupDTO"
+- stepOrder: >=1 (sequential)
+- stepType: {stepTypeId: 6, stepTypeKey: "repeat", displayOrder: 6}
+- numberOfIterations: >=1 (number of repeats)
+- endCondition: {conditionTypeId: 7, conditionTypeKey: "iterations", displayOrder: 7, displayable: false}
+- endConditionValue: number of iterations
+- targetType: {workoutTargetTypeId: 1, workoutTargetTypeKey: "no.target", displayOrder: 1}
+- strokeType: {strokeTypeId: 0, displayOrder: 0}
+- equipmentType: {equipmentTypeId: 0, displayOrder: 0}
+- smartRepeat: false
+- workoutSteps: [ ...child steps... ]
+FORBIDDEN on RepeatGroupDTO: targetValueOne, targetValueTwo
+
+⚙️ MAPPINGS GARMIN:
+
+stepType:
+- warmup: stepTypeId=1, stepTypeKey="warmup", displayOrder=1
+- cooldown: stepTypeId=2, stepTypeKey="cooldown", displayOrder=2
+- interval: stepTypeId=3, stepTypeKey="interval", displayOrder=3
+- recovery: stepTypeId=4, stepTypeKey="recovery", displayOrder=4
+- repeat: stepTypeId=6, stepTypeKey="repeat", displayOrder=6
+
+endCondition:
+- time: conditionTypeId=2, conditionTypeKey="time", displayOrder=2, displayable=true
+- distance: conditionTypeId=3, conditionTypeKey="distance", displayOrder=3, displayable=true
+- iterations: conditionTypeId=7, conditionTypeKey="iterations", displayOrder=7, displayable=false
+
+targetType:
+- no.target: workoutTargetTypeId=1, workoutTargetTypeKey="no.target", displayOrder=1
+- pace.zone: workoutTargetTypeId=6, workoutTargetTypeKey="pace.zone", displayOrder=6
+
+🧭 PACE ZONE CONVERSION (CRITICAL):
+
+For any pace in "m:ss/km" format (e.g., 3:50/km):
+
+1. Parse: minutes = integer before ":", seconds = integer after ":"
+2. Calculate: paceSec = (minutes × 60) + seconds
+3. If paceSec < 60 or paceSec > 420 → use no.target instead
+4. Create ±5s band:
+   - lowerSec = paceSec + 5 (slower, higher seconds)
+   - upperSec = paceSec - 5 (faster, lower seconds)
+5. Convert to m/s (Garmin requires m/s format):
+   - lowerMs = 1000 / lowerSec (slower pace = lower m/s)
+   - upperMs = 1000 / upperSec (faster pace = higher m/s)
+6. Apply: targetValueOne = upperMs, targetValueTwo = lowerMs
+
+Example: 3:50/km
+- paceSec = 230
+- lowerSec = 235, upperSec = 225
+- lowerMs = 1000/235 = 4.255, upperMs = 1000/225 = 4.444
+- targetValueOne = 4.444 (faster), targetValueTwo = 4.255 (slower)
+
+CRITICAL: targetValueOne > targetValueTwo (faster = higher m/s)
+
+IMPORTANT RULES:
+- Never use speed.zone if you want min/km display - use pace.zone
+- Never set pace target on warmup/recovery/cooldown
+- Never set pace target on RepeatGroupDTO level
+- zoneNumber: can be 1 or null (both work)
+- targetValueUnit: should be null for pace zones
+
+🧠 DURATIONS, DISTANCES, SUMS:
+- time: in seconds
+- distance: in meters
+- If distance + pace zone: estimated duration = distance_m / ((targetValueOne + targetValueTwo) / 2)
+- estimatedDurationInSecs: exact sum of all executable durations, repetitions included
+  Example: warmup 900s + (3×100m + 3×45s) + (12×400m + 12×75s) + cooldown 600s = 3939s
+
+🧩 COMPOSITION RULES:
+- "interval", "vma", "hills" → require at least one RepeatGroupDTO
+- "tempo", "endurance", "easy", "long_run" → no RepeatGroupDTO (only ExecutableStepDTO)
+- Defaults if not specified: Warmup=300s, Cooldown=300s
+- "10x(30/30)" = RepeatGroupDTO (10 iterations: 30s interval + 30s recovery)
+- "2x10x(30/30) + 3' between series" = RepeatGroupDTO + 180s recovery + RepeatGroupDTO
+- "Lignes droites" = RepeatGroupDTO 3× (100m interval + 45s recovery), no target
 
 COMMON ERRORS TO AVOID:
 - Do NOT include workoutId, ownerId, stepId, childStepId (auto-cleaned if auto_clean=true)
-- Do NOT wrap in array or "output" object - send the workout object directly
-- Do NOT use "kind" field - it doesn't exist in Garmin API
-- Ensure all IDs (stepTypeId, conditionTypeId, etc.) are present, not just keys
-- For pace zones: targetValueOne > targetValueTwo (faster = higher m/s), zoneNumber can be 1 or null (both work)
+- Do NOT wrap in array or "output" object - send workout object directly
+- Do NOT use "kind" field - it doesn't exist
+- Ensure all IDs are present (stepTypeId, conditionTypeId, etc.), not just keys
+- targetValueOne must be > targetValueTwo for pace zones
 
-Generated IDs (workoutId, stepId, etc.) will be automatically cleaned if auto_clean=true (default).`,
+Generated IDs will be automatically cleaned if auto_clean=true (default).`,
     inputSchema: {
       type: "object",
       properties: {
