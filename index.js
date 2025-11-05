@@ -96,7 +96,7 @@ const apiRequest = async (method, endpoint, body = null) => {
 const server = new Server(
   {
     name: "garmin-connect-mcp-client",
-    version: "0.3.3",
+    version: "0.3.4",
   },
   {
     capabilities: {
@@ -199,12 +199,24 @@ PACE ZONE FORMAT (targetValueOne/targetValueTwo):
     * Possible values: "sec_per_km", "m_per_s", null, etc.
     * Purpose: Explicitly specifies the unit, but null is standard for pace zones
   
-  CRITICAL: 
+  ⚠️ COMMON MISTAKE - VALUES THAT GIVE 4:30-4:40/km (WRONG):
+  - targetValueOne: 3.7037037 → This is 4:30/km (WRONG for 3:50/km)
+  - targetValueTwo: 3.5714285 → This is 4:40/km (WRONG for 3:50/km)
+  - These values are INVERTED and TOO LOW - they give 4:35/km display
+  
+  ✅ CORRECT VALUES FOR 3:50/km:
+  - targetValueOne: 4.348 (or 4.444 for 3:45/km zone)
+  - targetValueTwo: 4.348 (or 4.255 for 3:55/km zone)
+  
+  CRITICAL RULES: 
   - targetValueOne MUST be > targetValueTwo (faster = higher m/s)
-  - zoneNumber can be 1 or null (both work, but 1 is recommended)
+  - For 3:50/km: targetValueOne = 4.348, targetValueTwo = 4.348
+  - For 3:45-3:55/km zone: targetValueOne = 4.444, targetValueTwo = 4.255
+  - zoneNumber can be 1 or null (both work)
   - targetValueUnit should be null for pace zones
-  - Your current values (3.704, 3.571) give 4:30-4:40/km, not 3:50/km
-  - Correct values for 3:45-3:55/km: targetValueOne: 4.444, targetValueTwo: 4.255
+  
+  FORMULA TO CONVERT: min:sec/km → 1000 / ((minutes × 60) + seconds)
+  Example: 3:50/km = 1000 / 230 = 4.348 m/s
   
   Quick conversion table:
   - 3:30/km = 4.762 m/s
