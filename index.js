@@ -110,17 +110,76 @@ const tools = [
   // Workout Tools
   {
     name: "upload_workout",
-    description: "Upload a workout to Garmin Connect",
+    description: `Upload a workout to Garmin Connect. The workout must be in JSON format compliant with the Garmin API.
+
+REQUIRED STRUCTURE:
+- workoutName (string): Name of the workout
+- sportType (object): Must include sportTypeId, sportTypeKey, displayOrder
+  * sportTypeId: 1=running, 2=cycling, 3=swimming, etc.
+  * sportTypeKey: "running", "cycling", "swimming", etc.
+- workoutSegments (array): Array of workout segments, each containing:
+  * segmentOrder (integer): Sequential order starting at 1
+  * sportType (object): Same structure as root sportType
+  * workoutSteps (array): Array of steps (warmup, intervals, recovery, cooldown, repeat groups)
+
+STEP TYPES (ExecutableStepDTO):
+- warmup: stepTypeId=1, stepTypeKey="warmup"
+- cooldown: stepTypeId=2, stepTypeKey="cooldown"
+- interval: stepTypeId=3, stepTypeKey="interval"
+- recovery: stepTypeId=4, stepTypeKey="recovery"
+- repeat: stepTypeId=6, stepTypeKey="repeat" (RepeatGroupDTO)
+
+END CONDITIONS:
+- time: conditionTypeId=2, conditionTypeKey="time", endConditionValue in seconds
+- distance: conditionTypeId=3, conditionTypeKey="distance", endConditionValue in meters
+- iterations: conditionTypeId=7, conditionTypeKey="iterations", endConditionValue=number of repeats
+
+REQUIRED FIELDS FOR EACH STEP:
+- type: "ExecutableStepDTO" or "RepeatGroupDTO"
+- stepOrder: Sequential integer
+- stepType: {stepTypeId, stepTypeKey, displayOrder}
+- endCondition: {conditionTypeId, conditionTypeKey, displayOrder, displayable}
+- endConditionValue: Number (seconds, meters, or iterations)
+- targetType: {workoutTargetTypeId, workoutTargetTypeKey, displayOrder}
+  * no.target: workoutTargetTypeId=1
+  * pace.zone: workoutTargetTypeId=6 (requires targetValueOne, targetValueTwo, zoneNumber)
+- strokeType: {strokeTypeId: 0, displayOrder: 0}
+- equipmentType: {equipmentTypeId: 0, displayOrder: 0}
+- numberOfIterations: 1 for single steps, N for repeat groups
+- workoutSteps: [] for ExecutableStepDTO, array for RepeatGroupDTO
+- smartRepeat: false (usually)
+
+COMMON ERRORS TO AVOID:
+- Do NOT include workoutId, ownerId, stepId, childStepId (auto-cleaned if auto_clean=true)
+- Do NOT wrap in array or "output" object - send the workout object directly
+- Do NOT use "kind" field - it doesn't exist in Garmin API
+- Ensure all IDs (stepTypeId, conditionTypeId, etc.) are present, not just keys
+- For pace zones, targetValueOne and targetValueTwo must be different
+
+Generated IDs (workoutId, stepId, etc.) will be automatically cleaned if auto_clean=true (default).`,
     inputSchema: {
       type: "object",
       properties: {
         workout_json: {
           type: ["object", "string"],
-          description: "Workout JSON object or string",
+          description: `Workout in JSON format (string or object). Must follow Garmin API structure with all required fields. Send the workout object directly, not wrapped in array or 'output' object.
+
+Example minimal structure:
+{
+  "workoutName": "My Workout",
+  "sportType": {"sportTypeId": 1, "sportTypeKey": "running", "displayOrder": 1},
+  "author": {},
+  "workoutSegments": [{
+    "segmentOrder": 1,
+    "sportType": {"sportTypeId": 1, "sportTypeKey": "running", "displayOrder": 1},
+    "workoutSteps": [...]
+  }]
+}`,
         },
         auto_clean: {
           type: "boolean",
-          description: "Automatically clean the workout before upload",
+          description:
+            "If true (default), automatically clean the workout by removing generated IDs (workoutId, stepId, childStepId, ownerId) before upload.",
           default: true,
         },
       },
