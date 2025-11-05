@@ -175,14 +175,36 @@ PACE ZONE FORMAT (targetValueOne/targetValueTwo):
     "targetType": {"workoutTargetTypeId": 6, "workoutTargetTypeKey": "pace.zone", "displayOrder": 6},
     "targetValueOne": 4.348,  // 3:50/km in m/s (faster limit)
     "targetValueTwo": 4.348,  // 3:50/km in m/s (slower limit)
-    "zoneNumber": 1,  // REQUIRED: must be 1, not null
-    "targetValueUnit": null  // Can be null, but zoneNumber is required
+    "zoneNumber": null,  // Can be 1 or null (both work, API may return null)
+    "targetValueUnit": null  // Should be null for pace zones
   }
   
+  For 3:45-3:55/km zone (example from Garmin API response):
+  {
+    "targetType": {"workoutTargetTypeId": 6, "workoutTargetTypeKey": "pace.zone", "displayOrder": 6},
+    "targetValueOne": 4.4444445,  // 3:45/km in m/s (faster)
+    "targetValueTwo": 4.2553192,  // 3:55/km in m/s (slower)
+    "zoneNumber": null,  // API returns null even when set
+    "targetValueUnit": null
+  }
+  
+  FIELD EXPLANATIONS:
+  - zoneNumber: Zone identifier for the target metric (pace, heart rate, etc.)
+    * For pace.zone: Can be 1 or null (both work, API may return null)
+    * For other target types: Can be 1-5 depending on zone type
+    * Purpose: Identifies which zone in a zone-based target system
+    * Note: Garmin API may return null even when set to 1
+  - targetValueUnit: Unit of measurement for targetValueOne/targetValueTwo
+    * For pace.zone: Should be null (API infers m/s from pace.zone type)
+    * Possible values: "sec_per_km", "m_per_s", null, etc.
+    * Purpose: Explicitly specifies the unit, but null is standard for pace zones
+  
   CRITICAL: 
-  - zoneNumber MUST be set to 1 (not null) for pace zones
   - targetValueOne MUST be > targetValueTwo (faster = higher m/s)
+  - zoneNumber can be 1 or null (both work, but 1 is recommended)
+  - targetValueUnit should be null for pace zones
   - Your current values (3.704, 3.571) give 4:30-4:40/km, not 3:50/km
+  - Correct values for 3:45-3:55/km: targetValueOne: 4.444, targetValueTwo: 4.255
   
   Quick conversion table:
   - 3:30/km = 4.762 m/s
@@ -203,7 +225,7 @@ COMMON ERRORS TO AVOID:
 - Do NOT wrap in array or "output" object - send the workout object directly
 - Do NOT use "kind" field - it doesn't exist in Garmin API
 - Ensure all IDs (stepTypeId, conditionTypeId, etc.) are present, not just keys
-- For pace zones: targetValueOne > targetValueTwo (faster = higher m/s), and zoneNumber must be 1 (not null)
+- For pace zones: targetValueOne > targetValueTwo (faster = higher m/s), zoneNumber can be 1 or null (both work)
 
 Generated IDs (workoutId, stepId, etc.) will be automatically cleaned if auto_clean=true (default).`,
     inputSchema: {
