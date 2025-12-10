@@ -327,6 +327,11 @@ Example minimal structure:
         enddate: { type: "string", description: "End date (YYYY-MM-DD)" },
         activitytype: { type: "string" },
         sortorder: { type: "string", enum: ["asc", "desc"] },
+        fields: {
+          type: "array",
+          items: { type: "string" },
+          description: "List of fields to include in the response",
+        },
       },
       required: ["startdate", "enddate"],
     },
