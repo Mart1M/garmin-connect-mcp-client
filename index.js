@@ -96,7 +96,7 @@ const apiRequest = async (method, endpoint, body = null) => {
 const server = new Server(
   {
     name: "garmin-connect-mcp-client",
-    version: "0.3.7",
+    version: "0.3.8",
   },
   {
     capabilities: {
@@ -400,6 +400,11 @@ Example minimal structure:
       type: "object",
       properties: {
         date: { type: "string", description: "Date (YYYY-MM-DD)" },
+        fields: {
+          type: "array",
+          items: { type: "string" },
+          description: "List of fields to include in the response",
+        },
       },
       required: ["date"],
     },
