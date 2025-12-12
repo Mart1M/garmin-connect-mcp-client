@@ -1,6 +1,6 @@
 {
     "name": "@mart1/garmin-connect-mcp-client",
-    "version": "0.3.9",
+    "version": "0.3.10",
     "description": "MCP Server client for Garmin Connect API",
     "type": "module",
     "main": "index.js",
